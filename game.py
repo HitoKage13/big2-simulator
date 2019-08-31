@@ -3,9 +3,10 @@
 # TO-DO LIST
 # - Implement states (most done)
 # - Check legal players
-# - If passing, will not go back to the player
+# - If passing, will not go back to the player (done)
 # - Implement player prompts (most done)
 # - Implement point system (most done)
+# - Sort cards based on points and/or suits
 
 import random
 
@@ -40,6 +41,36 @@ class Card():
     def __repr__(self):
        return self._suit + self._rank
 
+class Player():
+    def __init__(self, id):
+        self._id = id
+        self._hand = []
+        self._active = True
+
+    @property
+    def id(self):
+        return self._id
+
+    @property
+    def hand(self):
+        return self._hand
+
+    @property
+    def active(self):
+        return self._active
+
+    def add_card(self, card):
+        self._hand.append(card)
+
+    def pass_round(self):
+        self._active = False
+
+    def reset_round(self):
+        self._active = True
+
+    def __repr__(self):
+       return self._hand
+
 class Condition():
     def __init__(self, state, lastCards):
         self._state = state
@@ -59,10 +90,10 @@ class Condition():
     def set_lastCards(self, lastCards):
         self._lastCards = lastCards
 
-P1 = []
-P2 = []
-P3 = []
-P4 = []
+P1 = Player(1)
+P2 = Player(2)
+P3 = Player(3)
+P4 = Player(4)
 deck = []
 
 P1_Points = 0
@@ -79,7 +110,7 @@ currentCondition = Condition(None, None)
 
 # prints the selected player's hand
 def printHand(player):
-    print("PLAYER " + str(player) + ": " + str(returnPlayer(player)))
+    print("PLAYER " + str(player.id) + ": " + str(player.hand))
 
 # initialises the game and
 def initialise_game():
@@ -106,14 +137,26 @@ def initialise_game():
     # randomly gives cards out
     random.shuffle(deck)
     for i in range(0, 13):
-        P1.append(deck[counter])
-        P2.append(deck[counter+1])
-        P3.append(deck[counter+2])
-        P4.append(deck[counter+3])
+        P1.add_card(deck[counter])
+        P2.add_card(deck[counter+1])
+        P3.add_card(deck[counter+2])
+        P4.add_card(deck[counter+3])
         counter += 4
 
 # provides a prompt for the current player to play cards
 def prompt(state, lastCards, player):
+    if (roundEnd() <= 1 and player.active == True):
+        currentCondition.set_state(None)
+        currentCondition.set_lastCards(None)
+        state = None
+        lastCards = None
+        P1.reset_round()
+        P2.reset_round()
+        P3.reset_round()
+        P4.reset_round()
+
+    if (player.active == False):
+        return
     printHand(player)
     if (state == None and lastCards == None):
         state = str(input("What state do you want to play? "))
@@ -129,10 +172,14 @@ def prompt(state, lastCards, player):
     if (action == "play"):
         print("What card are you playing? Enter in [SUIT] [RANK] or `pass` to skip your turn")
     elif (action == "pass"):
+        player.pass_round()
         return
     elif (action == "legal"):
         # legalPlays()
         pass
+    else:
+        player.pass_round()
+        return
 
     card1 = input()
     if (state == '1'):
@@ -154,15 +201,16 @@ def prompt(state, lastCards, player):
         pass
 
     if (checkLegal(state, lastCards, playedCards)):
-
         # checks if the cards played are in hand
         for card in playedCards:
-            if (returnCard(card, returnPlayer(player)) == None):
+            if (returnCard(str(card), player.hand) == None):
                 print("REKT")
+                player.pass_round()
+                return
 
         # plays the cards
         for card in playedCards:
-            playCard(card, returnPlayer(player))
+            playCard(card, player.hand)
 
         # sets the cards played for next round
         currentCondition.set_lastCards(playedCards)
@@ -227,15 +275,28 @@ def checkLegal(state, lastCards, playedCards):
 
     return False
 
+def roundEnd():
+    counter = 4
+    if (P1.active == False):
+        counter -= 1
+    if (P2.active == False):
+        counter -= 1
+    if (P3.active == False):
+        counter -= 1
+    if (P4.active == False):
+        counter -= 1
+
+    return counter
+
 # checks if the game is finished
 def checkFinish():
-    if (len(P1) == 0):
+    if (len(P1.hand) == 0):
         return 1
-    elif (len(P2) == 0):
+    elif (len(P2.hand) == 0):
         return 2
-    elif (len(P3) == 0):
+    elif (len(P3.hand) == 0):
         return 3
-    elif (len(P4) == 0):
+    elif (len(P4.hand) == 0):
         return 4
     else:
         return 0
@@ -255,16 +316,17 @@ def calcPoints(player):
 def game():
     initialise_game()
     while (checkFinish() == 0):
-        prompt(currentCondition.state, currentCondition.lastCards, 1)
+        prompt(currentCondition.state, currentCondition.lastCards, P1)
         if (checkFinish() > 0):
             break
-        prompt(currentCondition.state, currentCondition.lastCards, 2)
+        prompt(currentCondition.state, currentCondition.lastCards, P2)
         if (checkFinish() > 0):
             break
-        prompt(currentCondition.state, currentCondition.lastCards, 3)
+        prompt(currentCondition.state, currentCondition.lastCards, P3)
         if (checkFinish() > 0):
             break
-        prompt(currentCondition.state, currentCondition.lastCards, 4)
+        prompt(currentCondition.state, currentCondition.lastCards, P4)
+        print("lol")
 
     P1_Points = calcPoints(returnPlayer(1))
     P2_Points = calcPoints(returnPlayer(2))
